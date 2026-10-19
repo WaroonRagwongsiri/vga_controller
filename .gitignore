@@ -1,0 +1,45 @@
+# Vivado project-mode .gitignore
+# Keep: *.xpr, *.srcs/ (your .v, .xdc, testbenches, .xci IP files), any *.tcl.
+# Ignore: everything Vivado regenerates when you open / build the project.
+
+# --- generated project folders (rebuilt on open / build) ---
+*.cache/
+*.hw/
+*.gen/
+*.ip_user_files/
+*.runs/
+*.sim/
+.Xil/
+
+# incremental-compile reference checkpoint copied into the sources tree
+# (Vivado only warns if it is missing)
+*.srcs/utils_1/imports/
+
+# --- logs, journals, crash files ---
+*.jou
+*.log
+*.str
+*.backup.*
+*.debug
+webtalk*
+hs_err_pid*
+vivado_pid*
+
+# --- build outputs (regenerate with Generate Bitstream) ---
+*.bit
+*.bin
+*.dcp
+*.ltx
+*.rpt
+*.wdb
+xsim.dir/
+
+# to keep a ready-to-flash bitstream in the repo, put it in release/
+!release/
+!release/*.bit
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+*~
+*.swp
