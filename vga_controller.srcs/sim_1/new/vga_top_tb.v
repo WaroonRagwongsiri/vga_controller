@@ -21,7 +21,7 @@ module vga_gfx_tb;
     reg         bus_par    = 1'b0;
     reg         bus_strobe = 1'b0;
 
-    wire        err_led, vblank_out;
+    wire        err_led;
     wire        hs, vs;
     wire [3:0]  r, g, b;
 
@@ -31,7 +31,6 @@ module vga_gfx_tb;
         .bus_par    (bus_par),
         .bus_strobe (bus_strobe),
         .err_led    (err_led),
-        .vblank_out (vblank_out),
         .vga_hsync  (hs),
         .vga_vsync  (vs),
         .vga_r      (r),

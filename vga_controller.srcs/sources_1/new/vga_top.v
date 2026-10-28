@@ -39,7 +39,6 @@ module vga_bus_top (
     input  wire        bus_strobe,
 
     output wire        err_led,      // lit ~84 ms after a rejected word
-    output wire        vblank_out,   // high during vertical blanking (sender may wait on it)
 
     output wire        vga_hsync,
     output wire        vga_vsync,
@@ -72,8 +71,7 @@ module vga_bus_top (
         .vga_vsync (vga_vsync),
         .vga_r     (vga_r),
         .vga_g     (vga_g),
-        .vga_b     (vga_b),
-        .vblank    (vblank_out)
+        .vga_b     (vga_b)
     );
 
 endmodule

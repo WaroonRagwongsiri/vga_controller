@@ -93,8 +93,7 @@ module vga_pattern_top (
         .vga_vsync (vga_vsync),
         .vga_r     (vga_r),
         .vga_g     (vga_g),
-        .vga_b     (vga_b),
-        .vblank    ()
+        .vga_b     (vga_b)
     );
 
 endmodule

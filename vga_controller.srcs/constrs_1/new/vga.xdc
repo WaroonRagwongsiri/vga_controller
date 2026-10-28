@@ -11,7 +11,7 @@
 ##   Pico GP22       -> LCD connector D6      (bus_par)
 ##   Pico GP26       -> LCD connector D7      (bus_strobe)
 ##   Pico GND        -> J5 pin4
-## LCD E and RS are not used.  err_led and vblank_out are on board LEDs 15 and 8.
+## LCD E and RS are not used.  err_led is on board LED 15.
 
 # Configuration voltage (avoids the CFGBVS DRC warning)
 set_property CFGBVS VCCO [current_design];
@@ -52,7 +52,6 @@ set_property -dict { PACKAGE_PIN K12 IOSTANDARD LVCMOS33 PULLDOWN true } [get_po
 
 # ---- Status outputs on board LEDs (no wire needed)
 set_property -dict { PACKAGE_PIN M1 IOSTANDARD LVCMOS33 } [get_ports { err_led }];     # led[15]: lit ~84 ms after a rejected word
-set_property -dict { PACKAGE_PIN J4 IOSTANDARD LVCMOS33 } [get_ports { vblank_out }];  # led[8]: dim glow = vertical blanking
 
 # ---- VGA
 set_property -dict { PACKAGE_PIN C4 IOSTANDARD LVCMOS33 } [get_ports { vga_hsync }];
@@ -75,4 +74,4 @@ set_property -dict { PACKAGE_PIN C5 IOSTANDARD LVCMOS33 } [get_ports { vga_b[3] 
 
 # Bus inputs are asynchronous (double-registered in the RTL); status outputs are static
 set_false_path -from [get_ports { bus_d[*] bus_par bus_strobe }]
-set_false_path -to   [get_ports { err_led vblank_out }]
+set_false_path -to   [get_ports { err_led }]

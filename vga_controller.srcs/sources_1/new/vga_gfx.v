@@ -26,10 +26,7 @@ module vga_gfx (
     output reg         vga_vsync,   // active low
     output reg  [3:0]  vga_r,
     output reg  [3:0]  vga_g,
-    output reg  [3:0]  vga_b,
-
-    // status
-    output reg         vblank       // high while v >= 480
+    output reg  [3:0]  vga_b
 );
 
     //--------------------------------------------------------------------------
@@ -164,7 +161,6 @@ module vga_gfx (
         vga_r     = 4'd0;
         vga_g     = 4'd0;
         vga_b     = 4'd0;
-        vblank    = 1'b0;
     end
 
     wire [11:0] pix_rgb = colour_to_rgb({rd_hi, rd_lo});
@@ -172,7 +168,6 @@ module vga_gfx (
     always @(posedge clk) begin
         vga_hsync <= hs1;
         vga_vsync <= vs1;
-        vblank    <= (v >= V_VISIBLE);
 
         if (on1) begin
             vga_r <= pix_rgb[11:8];

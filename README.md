@@ -85,7 +85,6 @@ Notes
 | FPGA pin | Board LED | Signal | Meaning |
 |---|---|---|---|
 | M1 | LED 15 | `err_led` | lit about 84 ms after a rejected word (bad parity, out of range, or unstable data) |
-| J4 | LED 8 | `vblank_out` | dim glow = vertical blanking (about 9% of the time) |
 
 ### 2.3 Clock and VGA connector
 
