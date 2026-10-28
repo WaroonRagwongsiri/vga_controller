@@ -196,6 +196,24 @@ One pixel = one word on the wires + one strobe pulse.
 | `bus_par` | 1 | even parity: `bus_par == ^bus_d` |
 | `bus_strobe` | 1 | rising edge = "read the bus now" |
 
+**Parity (even).** `bus_par` is the XOR of the 22 data bits, so the total number of 1s across
+all 23 wires (`bus_d` + `bus_par`) is always even. Put another way, `bus_par = 1` when `bus_d`
+holds an odd number of 1s.
+
+| Data bits | Number of 1s | `bus_par` | Total 1s |
+|---|---|---|---|
+| `0000` | 0 | 0 | 0 |
+| `0111` | 3 | 1 | 4 |
+| `0110` | 2 | 0 | 2 |
+
+The receiver XORs all 23 bits and accepts the word only when the result is 0
+(`par_ok = ~(^w1)` in `bus_rx.v`). In Python on the sender:
+
+```python
+parity = bin(data).count("1") & 1     # data = bus_d[21:0]
+word   = data | (parity << 22)
+```
+
 Sender timing (receiver clock 50 MHz):
 
 ```
