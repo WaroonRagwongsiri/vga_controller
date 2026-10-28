@@ -3,15 +3,9 @@
 An FPGA that acts as a tiny **VGA display chip**. A microcontroller sends pixels over a 24-wire
 parallel bus; the FPGA stores them in Block RAM and continuously scans them out as a standard **640x480 @ 60 Hz VGA** signal.
 
-```
- Sender (MCU)                     EDGE Spartan-7 (display chip)                 Monitor
-+-------------+   24 wires    +--------------------------------------+  VGA  +---------+
-| write pixel | ------------> | bus receiver -> 320x180 framebuffer  | ----> | picture |
-| X, Y, colour|  22 data      |   (Block RAM)  -> VGA scanner        |       +---------+
-|             |  + parity     +--------------------------------------+
-|             |  + strobe
-+-------------+
-```
+![Block diagram](diagrams/block_diagram.png)
+
+Editable draw.io sources for every diagram are in [`diagrams/`](diagrams/).
 
 ## 1. Board
 
@@ -65,11 +59,11 @@ standard VESA 640x480 @ 60 Hz mode (see [References](#7-references)).
 | J5 pin19 | E12 | `bus_d[14]` | Y bit 5 |
 | J5 pin20 | F12 | `bus_d[15]` | Y bit 6 |
 | LCD D0 | M4 | `bus_d[16]` | Y bit 7 |
-| LCD D1 | L5 | `bus_d[17]` | colour B0 |
-| LCD D2 | P11 | `bus_d[18]` | colour B1 |
-| LCD D3 | N11 | `bus_d[19]` | colour G |
-| LCD D4 | P13 | `bus_d[20]` | colour R0 |
-| LCD D5 | M14 | `bus_d[21]` | colour R1 |
+| LCD D1 | L5 | `bus_d[17]` | color B0 |
+| LCD D2 | P11 | `bus_d[18]` | color B1 |
+| LCD D3 | N11 | `bus_d[19]` | color G |
+| LCD D4 | P13 | `bus_d[20]` | color R0 |
+| LCD D5 | M14 | `bus_d[21]` | color R1 |
 | LCD D6 | M12 | `bus_par` | even parity bit |
 | LCD D7 | K12 | `bus_strobe` | write strobe (rising edge) |
 | J5 pin4 | - | GND | **common ground with the sender, required** |
@@ -100,11 +94,23 @@ Notes
 All pins are LVCMOS33. Bus inputs have an internal pull-down so a disconnected wire reads 0.
 The configuration voltage is set with `CFGBVS VCCO` and `CONFIG_VOLTAGE 3.3`.
 
-## 3. How it works (core logic)
+## 3. How it works
+
+The design has two blocks that share one framebuffer. The **Pixel Bus Receiver** checks each
+pixel word from the sender and writes it into the framebuffer. The **VGA Scan Engine** reads the
+framebuffer continuously and drives the VGA pins.
+
+![Layer 1: system blocks](diagrams/layer1_system_blocks.png)
+
+Sections 3.1 to 3.4 cover the VGA Scan Engine. Sections 3.5 and 3.6 cover the bus and the
+Pixel Bus Receiver.
 
 ### 3.1 VGA signal generation
 
-Everything is driven by a counter pair that runs at the pixel clock.
+![Layer 2: VGA Scan Engine](diagrams/layer2_vga_scan_engine.png)
+
+Everything is driven by a counter pair that runs at the pixel clock. The **Pixel Clock Divider**
+makes the 25 MHz tick, and the **H / V Counters** count pixels and lines.
 
 ```
 50 MHz clk --> tick (/2 = 25 MHz enable) --> h counter 0..799 --> v counter 0..524
@@ -120,11 +126,13 @@ neighbouring porch, so the totals are the same:
 | Horizontal (pixels) | 640 | 16 = 8 + 8 | 96 | 48 = 40 + 8 | 800 |
 | Vertical (lines) | 480 | 10 = 8 + 2 | 2 | 33 = 25 + 8 | 525 |
 
-- HSYNC is low while `656 <= h < 752`; VSYNC is low while `490 <= v < 492`. Both are negative polarity, as DMT requires for this mode.
+- The **Timing Controller** drives HSYNC low while `656 <= h < 752` and VSYNC low while `490 <= v < 492`. Both are negative polarity, as DMT requires for this mode.
 - Outside the visible area the RGB outputs are forced to 0 (borders and blanking are black).
 - DMT gives a pixel clock of 25.175 MHz (59.940 Hz) with a tolerance of +/-0.5%. This design uses 25.000 MHz (50 MHz / 2), which gives **59.52 Hz** and is about 0.7% slow, slightly outside that tolerance. It displayed correctly on the monitor used for testing, but a stricter monitor could reject it. An MMCM to make 25.175 MHz is the planned fix.
 
 ### 3.2 Picture window and addresses
+
+The **Address Mapper** turns the screen position (h, v) into a framebuffer address.
 
 ```
 screen line  0..59      black bar
@@ -138,26 +146,28 @@ screen line 420..479    black bar
 
 ### 3.3 Framebuffer and pipeline
 
-The write port (from the receiver) and read port (to the scanner) are separate, so the
+The write port (from the Pixel Bus Receiver) and read port (inside the VGA Scan Engine) are separate, so the
 sender can draw while the monitor is being refreshed. The read path has a fixed delay and
-the sync signals are delayed by the same amount:
+the **Delay Register** holds the sync signals for the same amount:
 
 ```
 t+0 : h, v counters  -> framebuffer read address
 t+1 : RAM data arrives  | hsync, vsync, "window on" flag delayed one clock
-t+2 : colour expanded to RGB444 -> registered VGA outputs
+t+2 : color expanded to RGB444 -> registered VGA outputs
 ```
 
-The framebuffer is initialised to black at configuration. There is **no clear command**:
-to erase, write colour 0 over the pixels.
+The framebuffer is initialized to black at configuration. There is **no clear command**:
+to erase, write color 0 over the pixels.
 
-### 3.4 Colour format and expansion to 4 bits
+### 3.4 Color format and expansion to 4 bits
 
-The framebuffer stores **5 bits per pixel**, but the VGA output takes **4 bits per colour**
+This is the **Color Decoder** block.
+
+The framebuffer stores **5 bits per pixel**, but the VGA output takes **4 bits per color**
 (12 bits in total). The stored bits are split into three fields:
 
 ```
-colour[4:3] = R (2 bits)    colour[2] = G (1 bit)    colour[1:0] = B (2 bits)
+color[4:3] = R (2 bits)    color[2] = G (1 bit)    color[1:0] = B (2 bits)
 ```
 
 Before the pixel goes to the VGA pins, each field is expanded to 4 bits by
@@ -180,7 +190,7 @@ In `vga_gfx.v` this is one line: `colour_to_rgb = {r, r, {4{g}}, b, b}`.
 | G = `0` | `0000` | 0 | 0% |
 | G = `1` | `1111` | F | 100% |
 
-This gives 4 x 2 x 4 = **32 colours**. Handy values: `00000` black, `11000` red, `00100` green,
+This gives 4 x 2 x 4 = **32 colors**. Handy values: `00000` black, `11000` red, `00100` green,
 `00011` blue, `11100` yellow, `00111` cyan, `11011` magenta, `11111` white.
 
 ### 3.5 Bus protocol (what the sender does)
@@ -191,7 +201,7 @@ One pixel = one word on the wires + one strobe pulse.
 |---|---|---|
 | `bus_d[8:0]` | 9 | X, 0..319 |
 | `bus_d[16:9]` | 8 | Y, 0..179 |
-| `bus_d[21:17]` | 5 | colour `{R[1:0], G, B[1:0]}` |
+| `bus_d[21:17]` | 5 | color `{R[1:0], G, B[1:0]}` |
 | `bus_par` | 1 | even parity: `bus_par == ^bus_d` |
 | `bus_strobe` | 1 | rising edge = "read the bus now" |
 
@@ -230,25 +240,27 @@ A slow sender (for example a microcontroller toggling pins in software, microsec
 
 ### 3.6 Receiver checks
 
+![Layer 2: Pixel Bus Receiver](diagrams/layer2_pixel_bus_receiver.png)
+
 ```
-bus pins -> 2-FF synchroniser (every line) -> strobe edge detect
-         -> capture the word on the edge
-         -> compare with the next clock's sample (must be identical)
-         -> parity even? X <= 319? Y <= 179?
-         -> compute address -> one-clock write pulse into the framebuffer
+bus pins -> Synchronizer            2 flip-flops on every line
+         -> Edge Detector           rising edge of the strobe
+         -> Stability Checker       word captured on the edge must match the next clock's sample
+         -> Parity & Range Checker  parity even? X <= 319? Y <= 179?
+         -> Write Controller        compute address, one-clock write pulse into the framebuffer
 ```
 
-Any failed check drops the word and lights **err_led (LED 15)** for about 84 ms
+Any failed check drops the word, and the **Error Indicator** lights **err_led (LED 15)** for about 84 ms
 (2^22 clocks at 50 MHz).
 
 ## 4. Files
 
 | File in repo / Vivado project | Module | Purpose |
 |---|---|---|
-| `vga_bus_rx.v` (project: `bus_rx.v`) | `vga_bus_rx` | bus receiver |
-| `vga_gfx.v` | `vga_gfx` | framebuffer + VGA scanner + colour decode |
+| `vga_bus_rx.v` (project: `bus_rx.v`) | `vga_bus_rx` | **Pixel Bus Receiver**: checks bus words, writes the framebuffer |
+| `vga_gfx.v` | `vga_gfx` | **VGA Scan Engine**: framebuffer, VGA timing, color decode |
 | `vga_bus_top.v` (project: `vga_top.v`) | `vga_bus_top` | **real top**: bus input to VGA |
-| `vga_pattern_top.v` | `vga_pattern_top` | test top: 32-colour chart, no sender |
+| `vga_pattern_top.v` | `vga_pattern_top` | test top: 32-color chart, no sender |
 | `vga_bus.xdc` (project: `vga.xdc`) | - | constraints for `vga_bus_top` |
 | `vga_pattern.xdc` | - | constraints for `vga_pattern_top` (clock + VGA only) |
 
@@ -256,17 +268,28 @@ Use **one** top and **one** matching XDC at a time. Do not enable `vga_pattern.x
 `vga.xdc` together, and do not use the stock `spartan7.xdc`, which assigns the same pins
 to several peripherals.
 
+### Diagrams
+
+| File | Content |
+|---|---|
+| `diagrams/block_diagram.drawio` / `.png` | Block diagram of the whole design |
+| `diagrams/top_down_layers.drawio` | Top-down design, one page per layer (Layer 0 to Layer 2) |
+| `diagrams/layer0_top_level.png` | Layer 0: the chip as one block with its pins |
+| `diagrams/layer1_system_blocks.png` | Layer 1: Pixel Bus Receiver and VGA Scan Engine |
+| `diagrams/layer2_pixel_bus_receiver.png` | Layer 2: inside the Pixel Bus Receiver |
+| `diagrams/layer2_vga_scan_engine.png` | Layer 2: inside the VGA Scan Engine |
+
 ## 5. How to run
 
 **A. Check the VGA side first (no sender needed)**
 1. Set `vga_pattern_top` as the top module and enable only `vga_pattern.xdc`.
 2. Generate the bitstream and program the board.
-3. The monitor should show 8 x 4 colour swatches, each with a white border.
+3. The monitor should show 8 x 4 color swatches, each with a white border.
 
 **B. Run with a sender**
 1. Set `vga_bus_top` as the top module and enable only `vga.xdc`. Re-run synthesis, implementation and bitstream, then reprogram.
 2. Wire the sender to the pins in section 2.1, including the common ground.
-3. Write pixels using the protocol in section 3.5. Start with a white frame (X = 0 or 319, Y = 0 or 179, colour 31) to check the X/Y wires, then the colour chart to check the colour wires.
+3. Write pixels using the protocol in section 3.5. Start with a white frame (X = 0 or 319, Y = 0 or 179, color 31) to check the X/Y wires, then the color chart to check the color wires.
 
 ## 6. Troubleshooting
 
@@ -275,7 +298,7 @@ to several peripherals.
 | Monitor says no signal | wrong top or XDC loaded, or VGA cable / pins |
 | Picture black, LED 15 lit | words arrive but are rejected: a bus wire is loose or in the wrong hole, or ground is missing |
 | Picture black, LED 15 off | the FPGA never sees a strobe: check the strobe wire (LCD D7), or an old bitstream is loaded |
-| Colours wrong, position right | colour wires (LCD D1..D5) swapped |
+| Colors wrong, position right | color wires (LCD D1..D5) swapped |
 | Pixels in the wrong place | X/Y wires swapped |
 | Vivado: unconstrained port or duplicate pin | two XDC files enabled, or a port name changed |
 
