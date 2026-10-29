@@ -55,25 +55,25 @@ module vga_bus_rx (
     //--------------------------------------------------------------------------
     // Stage 1: capture on the strobe edge, compare with the next clock's sample
     //--------------------------------------------------------------------------
-    reg        v0         = 1'b0;
-    reg [22:0] cap        = 23'd0;
-    reg        v1         = 1'b0;
-    reg [22:0] w1         = 23'd0;
-    reg        bad_stable = 1'b0;
+    reg        check_pending = 1'b0;    // a capture happened last clock, check it now
+    reg [22:0] captured      = 23'd0;   // bus word saved on the strobe edge
+    reg        word_valid    = 1'b0;    // one-clock pulse: `word` passed the stability check
+    reg [22:0] word          = 23'd0;   // verified word {parity, colour, Y, X}
+    reg        err_unstable  = 1'b0;    // one-clock pulse: bus changed right after the strobe
 
     always @(posedge clk) begin
-        v0 <= stb_rise;
+        check_pending <= stb_rise;
         if (stb_rise)
-            cap <= d_s2;
+            captured <= d_s2;
 
-        v1         <= 1'b0;
-        bad_stable <= 1'b0;
-        if (v0) begin
-            if (d_s2 == cap) begin
-                v1 <= 1'b1;
-                w1 <= cap;
+        word_valid   <= 1'b0;
+        err_unstable <= 1'b0;
+        if (check_pending) begin
+            if (d_s2 == captured) begin
+                word_valid <= 1'b1;
+                word       <= captured;
             end else begin
-                bad_stable <= 1'b1;
+                err_unstable <= 1'b1;
             end
         end
     end
@@ -82,14 +82,14 @@ module vga_bus_rx (
     // Stage 2: parity + range checks, address calculation, write pulse
     //   addr = Y*320 + X = (Y<<8) + (Y<<6) + X   (no multiplier)
     //--------------------------------------------------------------------------
-    wire [8:0]  x      = w1[8:0];
-    wire [7:0]  y      = w1[16:9];
-    wire [4:0]  c      = w1[21:17];
-    wire        par_ok = ~(^w1);                       // even parity over all 23 bits
-    wire        rng_ok = (x <= 9'd319) && (y <= 8'd179);
-    wire [15:0] addr   = ({8'd0, y} << 8) + ({8'd0, y} << 6) + {7'd0, x};
+    wire [8:0]  x         = word[8:0];
+    wire [7:0]  y         = word[16:9];
+    wire [4:0]  colour    = word[21:17];
+    wire        parity_ok = ~(^word);                       // even parity over all 23 bits
+    wire        range_ok  = (x <= 9'd319) && (y <= 8'd179);
+    wire [15:0] addr      = ({8'd0, y} << 8) + ({8'd0, y} << 6) + {7'd0, x};
 
-    reg bad_word = 1'b0;
+    reg err_bad_word = 1'b0;    // one-clock pulse: parity or X/Y range check failed
 
     initial begin
         wr_en   = 1'b0;
@@ -98,15 +98,15 @@ module vga_bus_rx (
     end
 
     always @(posedge clk) begin
-        wr_en    <= 1'b0;
-        bad_word <= 1'b0;
-        if (v1) begin
-            if (par_ok && rng_ok) begin
+        wr_en        <= 1'b0;
+        err_bad_word <= 1'b0;
+        if (word_valid) begin
+            if (parity_ok && range_ok) begin
                 wr_en   <= 1'b1;
                 wr_addr <= addr;
-                wr_data <= c;
+                wr_data <= colour;
             end else begin
-                bad_word <= 1'b1;
+                err_bad_word <= 1'b1;
             end
         end
     end
@@ -121,7 +121,7 @@ module vga_bus_rx (
 
     reg [22:0] err_cnt = 23'd0;
     always @(posedge clk) begin
-        if (bad_stable | bad_word)
+        if (err_unstable | err_bad_word)
             err_cnt <= ERR_HOLD;
         else if (err_cnt != 23'd0)
             err_cnt <= err_cnt - 23'd1;

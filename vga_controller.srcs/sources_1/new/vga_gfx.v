@@ -142,14 +142,14 @@ module vga_gfx (
     //--------------------------------------------------------------------------
     // Pipeline stage 1: delay sync and window flag to match the RAM latency
     //--------------------------------------------------------------------------
-    reg hs1 = 1'b1;
-    reg vs1 = 1'b1;
-    reg on1 = 1'b0;
+    reg hsync_delayed  = 1'b1;   // hsync, 1 clock late (lines up with RAM data)
+    reg vsync_delayed  = 1'b1;   // vsync, 1 clock late
+    reg win_on_delayed = 1'b0;   // win_on, 1 clock late
 
     always @(posedge clk) begin
-        hs1 <= ~((h >= H_SYNC_START) && (h < H_SYNC_END));
-        vs1 <= ~((v >= V_SYNC_START) && (v < V_SYNC_END));
-        on1 <= win_on;
+        hsync_delayed  <= ~((h >= H_SYNC_START) && (h < H_SYNC_END));
+        vsync_delayed  <= ~((v >= V_SYNC_START) && (v < V_SYNC_END));
+        win_on_delayed <= win_on;
     end
 
     //--------------------------------------------------------------------------
@@ -166,10 +166,10 @@ module vga_gfx (
     wire [11:0] pix_rgb = colour_to_rgb({rd_hi, rd_lo});
 
     always @(posedge clk) begin
-        vga_hsync <= hs1;
-        vga_vsync <= vs1;
+        vga_hsync <= hsync_delayed;
+        vga_vsync <= vsync_delayed;
 
-        if (on1) begin
+        if (win_on_delayed) begin
             vga_r <= pix_rgb[11:8];
             vga_g <= pix_rgb[7:4];
             vga_b <= pix_rgb[3:0];

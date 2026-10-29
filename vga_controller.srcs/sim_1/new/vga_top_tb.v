@@ -149,7 +149,7 @@ module vga_gfx_tb;
     // blanking, palette colours, window rows, error events
     //--------------------------------------------------------------------------
     always @(posedge clk) begin
-        on2 <= dut.gfx.on1;
+        on2 <= dut.gfx.win_on_delayed;
 
         if ((!hs || !vs) && ({r, g, b} !== 12'h000)) begin
             errors = errors + 1;
@@ -172,7 +172,7 @@ module vga_gfx_tb;
             if (dut.gfx.v > wmax) wmax = dut.gfx.v;
         end
 
-        if (dut.rx.bad_stable || dut.rx.bad_word)
+        if (dut.rx.err_unstable || dut.rx.err_bad_word)
             err_events = err_events + 1;
 
         if (err_led)
