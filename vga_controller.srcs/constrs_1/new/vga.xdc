@@ -51,7 +51,7 @@ set_property -dict { PACKAGE_PIN M12 IOSTANDARD LVCMOS33 PULLDOWN true } [get_po
 set_property -dict { PACKAGE_PIN K12 IOSTANDARD LVCMOS33 PULLDOWN true } [get_ports { bus_strobe }]; # lcd D7, led[0]
 
 # ---- Status outputs on board LEDs (no wire needed)
-set_property -dict { PACKAGE_PIN M1 IOSTANDARD LVCMOS33 } [get_ports { err_led }];     # led[15]: lit ~84 ms after a rejected word
+set_property -dict { PACKAGE_PIN M1 IOSTANDARD LVCMOS33 } [get_ports { err_led }];     # led[15]: lit 100 ms after a rejected word
 
 # ---- VGA
 set_property -dict { PACKAGE_PIN C4 IOSTANDARD LVCMOS33 } [get_ports { vga_hsync }];
