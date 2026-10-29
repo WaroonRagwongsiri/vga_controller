@@ -11,7 +11,7 @@
 //   bus_par      = even parity over bus_d (bus_par == ^bus_d)
 //   bus_strobe   = rising edge means "read the bus now"
 //
-// Checks done here (a failed word is dropped and err_led is lit ~84 ms):
+// Checks done here (a failed word is dropped and err_led is lit 100 ms):
 //   1. both samples of the bus must match (stability check)
 //   2. parity must be even over the 22 data bits + parity bit
 //   3. X <= 319 and Y <= 179
@@ -112,16 +112,21 @@ module vga_bus_rx (
     end
 
     //--------------------------------------------------------------------------
-    // Error stretcher: 2^22 clocks at 50 MHz = about 84 ms, visible on an LED
+    // Error stretcher: ERR_HOLD clocks at 50 MHz = 100 ms, visible on an LED
+    //   ERR_HOLD = CLK_HZ / 1000 * ERR_MS = 5,000,000 (fits in 23 bits, max ~167 ms)
     //--------------------------------------------------------------------------
-    reg [21:0] err_cnt = 22'd0;
+    localparam integer CLK_HZ   = 50_000_000;
+    localparam integer ERR_MS   = 100;
+    localparam [22:0]  ERR_HOLD = CLK_HZ / 1000 * ERR_MS;
+
+    reg [22:0] err_cnt = 23'd0;
     always @(posedge clk) begin
         if (bad_stable | bad_word)
-            err_cnt <= 22'h3FFFFF;
-        else if (err_cnt != 22'd0)
-            err_cnt <= err_cnt - 22'd1;
+            err_cnt <= ERR_HOLD;
+        else if (err_cnt != 23'd0)
+            err_cnt <= err_cnt - 23'd1;
     end
 
-    assign err_led = (err_cnt != 22'd0);
+    assign err_led = (err_cnt != 23'd0);
 
 endmodule

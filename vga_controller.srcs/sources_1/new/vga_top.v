@@ -25,7 +25,7 @@
 //   4. strobe low, wait >= ~50 ns, then next word
 //
 // A word with bad parity, X > 319, Y > 179, or data that changed around the
-// strobe is dropped and err_led lights for about 84 ms.
+// strobe is dropped and err_led lights for 100 ms.
 // The frame buffer starts black.  There is no clear command: to erase, write
 // black (colour 0) over the pixels.
 //
@@ -38,7 +38,7 @@ module vga_bus_top (
     input  wire        bus_par,
     input  wire        bus_strobe,
 
-    output wire        err_led,      // lit ~84 ms after a rejected word
+    output wire        err_led,      // lit 100 ms after a rejected word
 
     output wire        vga_hsync,
     output wire        vga_vsync,

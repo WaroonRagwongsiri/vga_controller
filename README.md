@@ -78,7 +78,7 @@ Notes
 
 | FPGA pin | Board LED | Signal | Meaning |
 |---|---|---|---|
-| M1 | LED 15 | `err_led` | lit about 84 ms after a rejected word (bad parity, out of range, or unstable data) |
+| M1 | LED 15 | `err_led` | lit 100 ms after a rejected word (bad parity, out of range, or unstable data) |
 
 ### 2.3 Clock and VGA connector
 
@@ -100,14 +100,14 @@ The design has two blocks that share one framebuffer. The **Pixel Bus Receiver**
 pixel word from the sender and writes it into the framebuffer. The **VGA Scan Engine** reads the
 framebuffer continuously and drives the VGA pins.
 
-![Layer 1: system blocks](diagrams/layer1_system_blocks.png)
+![2nd Layer: system blocks](diagrams/second_layer.png)
 
 Sections 3.1 to 3.4 cover the VGA Scan Engine. Sections 3.5 and 3.6 cover the bus and the
 Pixel Bus Receiver.
 
 ### 3.1 VGA signal generation
 
-![Layer 2: VGA Scan Engine](diagrams/layer2_vga_scan_engine.png)
+![3rd Layer: VGA Scan Engine](diagrams/third_layer_vga_scan_engine.png)
 
 Everything is driven by a counter pair that runs at the pixel clock. The **Pixel Clock Divider**
 makes the 25 MHz tick, and the **H / V Counters** count pixels and lines.
@@ -240,7 +240,7 @@ A slow sender (for example a microcontroller toggling pins in software, microsec
 
 ### 3.6 Receiver checks
 
-![Layer 2: Pixel Bus Receiver](diagrams/layer2_pixel_bus_receiver.png)
+![3rd Layer: Pixel Bus Receiver](diagrams/third_layer_pixel_bus_receiver.png)
 
 ```
 bus pins -> Synchronizer            2 flip-flops on every line
@@ -250,8 +250,8 @@ bus pins -> Synchronizer            2 flip-flops on every line
          -> Write Controller        compute address, one-clock write pulse into the framebuffer
 ```
 
-Any failed check drops the word, and the **Error Indicator** lights **err_led (LED 15)** for about 84 ms
-(2^22 clocks at 50 MHz).
+Any failed check drops the word, and the **Error Indicator** lights **err_led (LED 15)** for 100 ms
+(5,000,000 clocks at 50 MHz, set by `ERR_MS` in `bus_rx.v`).
 
 ## 4. Files
 
@@ -273,11 +273,11 @@ to several peripherals.
 | File | Content |
 |---|---|
 | `diagrams/block_diagram.drawio` / `.png` | Block diagram of the whole design |
-| `diagrams/top_down_layers.drawio` | Top-down design, one page per layer (Layer 0 to Layer 2) |
-| `diagrams/layer0_top_level.png` | Layer 0: the chip as one block with its pins |
-| `diagrams/layer1_system_blocks.png` | Layer 1: Pixel Bus Receiver and VGA Scan Engine |
-| `diagrams/layer2_pixel_bus_receiver.png` | Layer 2: inside the Pixel Bus Receiver |
-| `diagrams/layer2_vga_scan_engine.png` | Layer 2: inside the VGA Scan Engine |
+| `diagrams/top_down_layers.drawio` | Top-down design, one page per layer (Top Layer, 2nd Layer, 3rd Layer) |
+| `diagrams/top_layer.png` | Top Layer: the chip as one block with its pins |
+| `diagrams/second_layer.png` | 2nd Layer: Pixel_Bus_Receiver and VGA_Scan_Engine |
+| `diagrams/third_layer_pixel_bus_receiver.png` | 3rd Layer: inside Pixel_Bus_Receiver |
+| `diagrams/third_layer_vga_scan_engine.png` | 3rd Layer: inside VGA_Scan_Engine |
 
 ## 5. How to run
 
